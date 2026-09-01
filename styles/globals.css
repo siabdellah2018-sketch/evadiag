@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;700&display=swap');
+
+:root {
+  --ink: #1B2A4A;
+  --ink-2: #2E4370;
+  --paper: #FAF7F0;
+  --paper-2: #F1ECDF;
+  --amber: #E8A33D;
+  --amber-dark: #C9821F;
+  --danger: #B3432B;
+  --success: #2F6E4E;
+  --line: #DCD5C2;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); }
+[data-lang="fr"] body, body[data-lang="fr"] { font-family: 'Inter', sans-serif; }
+[data-lang="ar"] body, body[data-lang="ar"] { font-family: 'Tajawal', sans-serif; }
+
+.display { font-weight: 700; }
+[data-lang="fr"] .display { font-family: 'Fraunces', serif; }
+[data-lang="ar"] .display { font-family: 'Cairo', sans-serif; }
+
+input, button { font: inherit; }
+input[type=text], input[type=password], input[type=number] {
+  border: 2px solid var(--line); background: white; border-radius: 6px; padding: 12px; width: 100%;
+}
+input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+.btn-primary {
+  background: var(--ink); color: var(--paper); font-weight: 700; border: none; border-radius: 6px;
+  padding: 14px; cursor: pointer; transition: background .15s ease, transform .15s ease;
+}
+.btn-primary:hover { background: var(--ink-2); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+.btn-amber {
+  background: var(--amber); color: var(--ink); font-weight: 700; border: none; border-radius: 6px;
+  padding: 14px; cursor: pointer; transition: background .15s ease, transform .15s ease;
+}
+.btn-amber:hover { background: var(--amber-dark); transform: translateY(-1px); }
+
+.choice-btn {
+  border: 2px solid var(--line); background: white; border-radius: 6px; font-weight: 700; cursor: pointer; padding: 8px;
+}
+.choice-btn.selected { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+
+.card { background: white; border-radius: 10px; padding: 16px; border: 1px solid var(--line); }
+.timer-pulse { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
