@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { checkTeacherAuth } from "../../../lib/checkTeacherAuth";
+import { resolveLevelAndSection } from "../../../lib/resolveLevelSection";
 
 // يتوقع ملف Excel بأعمدة (بأي ترتيب، أسماء الأعمدة بالعربية أو الفرنسية):
 // الاسم الكامل / Nom complet | رمز Massar / Code Massar | كلمة السر / Mot de passe | القسم / Section | المستوى / Niveau
@@ -46,12 +47,13 @@ export async function POST(req) {
   const toInsert = [];
   for (const s of students) {
     const password_hash = await bcrypt.hash(s.password, 10);
+    const { levelId, sectionId } = await resolveLevelAndSection(db, s.level, s.section);
     toInsert.push({
       full_name: s.fullName,
       code_massar: s.codeMassar,
       password_hash,
-      section: s.section || null,
-      level: s.level || null,
+      level_id: levelId,
+      section_id: sectionId,
     });
   }
   const { data, error } = await db.from("students").upsert(toInsert, { onConflict: "code_massar" }).select();

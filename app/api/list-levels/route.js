@@ -8,17 +8,12 @@ export async function POST(req) {
     return NextResponse.json({ ok: false, error: "غير مصرح" }, { status: 401 });
   }
   const db = supabaseAdmin();
-  const { data, error } = await db
-    .from("students")
-    .select("full_name, code_massar, created_at, levels(name), sections(name)")
-    .order("full_name");
+  const { data: levels, error } = await db.from("levels").select("id, name").order("name");
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  const students = data.map((s) => ({
-    full_name: s.full_name,
-    code_massar: s.code_massar,
-    created_at: s.created_at,
-    level: s.levels?.name || "",
-    section: s.sections?.name || "",
+  const { data: sections } = await db.from("sections").select("id, level_id, name").order("name");
+  const withSections = levels.map((l) => ({
+    ...l,
+    sections: (sections || []).filter((s) => s.level_id === l.id),
   }));
-  return NextResponse.json({ ok: true, students });
+  return NextResponse.json({ ok: true, levels: withSections });
 }

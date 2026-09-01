@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;700&display=swap');
 
 :root {
-  --ink: #1B2A4A;
-  --ink-2: #2E4370;
-  --paper: #FAF7F0;
-  --paper-2: #F1ECDF;
+  --ink: #0B1F3F;
+  --ink-2: #2B4C8C;
+  --paper: #F5F7FA;
+  --paper-2: #E4EAF2;
   --amber: #E8A33D;
   --amber-dark: #C9821F;
   --danger: #B3432B;
   --success: #2F6E4E;
-  --line: #DCD5C2;
+  --line: #C7D2E0;
 }
 
 * { box-sizing: border-box; }

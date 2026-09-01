@@ -10,14 +10,14 @@ export async function POST(req) {
   const db = supabaseAdmin();
   const { data: tests, error } = await db
     .from("tests")
-    .select("id, code, title_fr, title_ar, duration_minutes, num_questions, created_at")
+    .select("id, code, title_fr, title_ar, duration_minutes, num_questions, created_at, levels(name)")
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   const { data: attempts } = await db.from("attempts").select("test_id");
   const counts = {};
   (attempts || []).forEach((a) => { counts[a.test_id] = (counts[a.test_id] || 0) + 1; });
-  const withCounts = tests.map((t) => ({ ...t, submissions: counts[t.id] || 0 }));
+  const withCounts = tests.map((t) => ({ ...t, levelName: t.levels?.name || "", submissions: counts[t.id] || 0 }));
 
   return NextResponse.json({ ok: true, tests: withCounts });
 }

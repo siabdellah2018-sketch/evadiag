@@ -9,12 +9,12 @@ export async function POST(req) {
   }
   const db = supabaseAdmin();
 
-  const { data: test } = await db.from("tests").select("*").eq("code", testCode).single();
+  const { data: test } = await db.from("tests").select("*, levels(name)").eq("code", testCode).single();
   if (!test) return NextResponse.json({ ok: false, error: "لم يتم العثور على الاختبار" }, { status: 404 });
 
   const { data: attempts, error } = await db
     .from("attempts")
-    .select("score, total, submitted_at, answers, students(full_name, code_massar, section, level)")
+    .select("score, total, submitted_at, answers, students(full_name, code_massar, levels(name), sections(name))")
     .eq("test_id", test.id)
     .order("submitted_at", { ascending: false });
 
@@ -23,15 +23,14 @@ export async function POST(req) {
   const rows = (attempts || []).map((a) => ({
     fullName: a.students?.full_name,
     codeMassar: a.students?.code_massar,
-    section: a.students?.section,
-    level: a.students?.level,
+    section: a.students?.sections?.name || "",
+    level: a.students?.levels?.name || "",
     score: a.score,
     total: a.total,
     submittedAt: a.submitted_at,
     answers: a.answers,
   }));
 
-  // تحليل حسب السؤال: عدد/نسبة الأخطاء لكل سؤال
   const questionStats = [];
   for (let i = 1; i <= test.num_questions; i++) {
     let wrong = 0;
@@ -46,7 +45,6 @@ export async function POST(req) {
     });
   }
 
-  // توزيع النقط حسب فئات: ضعيف (<50%) / متوسط (50-69%) / جيد (>=70%)
   let weak = 0, average = 0, good = 0;
   rows.forEach((r) => {
     const pct = r.total ? (r.score / r.total) * 100 : 0;
@@ -57,7 +55,7 @@ export async function POST(req) {
 
   return NextResponse.json({
     ok: true,
-    test,
+    test: { ...test, levelName: test.levels?.name || "" },
     results: rows,
     questionStats,
     distribution: { weak, average, good, totalStudents: rows.length },

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { checkTeacherAuth } from "../../../lib/checkTeacherAuth";
+import { resolveLevelAndSection } from "../../../lib/resolveLevelSection";
 
 export async function POST(req) {
   const { teacherCode, students } = await req.json();
@@ -17,12 +18,13 @@ export async function POST(req) {
   for (const s of students) {
     if (!s.fullName || !s.codeMassar || !s.password) continue;
     const password_hash = await bcrypt.hash(String(s.password), 10);
+    const { levelId, sectionId } = await resolveLevelAndSection(db, s.level, s.section);
     rows.push({
       full_name: s.fullName.trim(),
       code_massar: s.codeMassar.trim(),
       password_hash,
-      section: (s.section || "").trim() || null,
-      level: (s.level || "").trim() || null,
+      level_id: levelId,
+      section_id: sectionId,
     });
   }
   if (rows.length === 0) {

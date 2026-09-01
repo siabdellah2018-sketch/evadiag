@@ -12,13 +12,14 @@ export async function POST(req) {
 
   const titleFr = form.get("titleFr");
   const titleAr = form.get("titleAr") || "";
+  const levelId = form.get("levelId");
   const duration = Number(form.get("duration"));
   const numQuestions = Number(form.get("numQuestions"));
   const answerKey = JSON.parse(form.get("answerKey") || "{}");
   const pdfFile = form.get("pdfFile");
 
-  if (!titleFr || !duration || !numQuestions || !pdfFile) {
-    return NextResponse.json({ ok: false, error: "بيانات ناقصة" }, { status: 400 });
+  if (!titleFr || !levelId || !duration || !numQuestions || !pdfFile) {
+    return NextResponse.json({ ok: false, error: "بيانات ناقصة (تأكد من اختيار المستوى)" }, { status: 400 });
   }
 
   const db = supabaseAdmin();
@@ -39,6 +40,7 @@ export async function POST(req) {
     code,
     title_fr: titleFr,
     title_ar: titleAr,
+    level_id: levelId,
     duration_minutes: duration,
     num_questions: numQuestions,
     answer_key: answerKey,

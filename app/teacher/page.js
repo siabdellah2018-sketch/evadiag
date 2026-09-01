@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import { exportSingleStudentPdf, exportBulkPdf } from "../../lib/exportPdf";
@@ -10,7 +10,7 @@ const TT = {
     loginTitle: "Accès enseignant(e)", accessCode: "Code d'accès (compte principal)",
     orLoginAs: "— ou connectez-vous avec un compte enseignant —",
     teacherName: "Nom", teacherPassword: "Mot de passe", loginBtn: "Entrer", wrong: "Identifiants incorrects",
-    tabCreateTest: "Nouveau test", tabStudents: "Élèves", tabResults: "Résultats", tabHistory: "Historique", tabTeachers: "Enseignants",
+    tabCreateTest: "Nouveau test", tabStudents: "Élèves", tabResults: "Résultats", tabHistory: "Historique", tabTeachers: "Enseignants", tabLevels: "Niveaux & sections",
     titleFr: "Titre (français)", titleAr: "Titre (arabe) — optionnel", duration: "Durée (minutes)", numQuestions: "Nombre de questions",
     pdfLabel: "Fichier PDF des questions", answersLabel: "Réponses correctes", question: "Question",
     createBtn: "Créer le test", creating: "Création...", testCreated: "Test créé ! Code à partager :",
@@ -28,6 +28,10 @@ const TT = {
     historyTitle: "Historique des tests", createdOn: "Créé le", submissions: "réponses", viewResults: "Voir les résultats",
     teachersTitle: "Comptes enseignants (visible pour le compte principal)", addTeacher: "Ajouter un(e) enseignant(e)",
     newTeacherName: "Nom du/de la nouvel(le) enseignant(e)", newTeacherPassword: "Mot de passe", addBtn: "Ajouter", teacherAdded: "Compte ajouté.",
+    selectLevel: "Niveau", levelsTitle: "Niveaux et sections", addLevel: "Ajouter un niveau", newLevelName: "Nom du niveau",
+    addSection: "Ajouter une section", newSectionName: "Nom de la section", editBtn: "Modifier", saveBtn: "Enregistrer", deleteBtn: "Supprimer",
+    confirmDelete: "Confirmer la suppression ?", currentStudents: "Liste des élèves", deleteStudentConfirm: "Supprimer cet élève ?",
+    deleteTeacherConfirm: "Supprimer ce compte enseignant ?", noStudents: "Aucun élève pour l'instant.", noTeachers: "Aucun autre compte pour l'instant.",
     loggedAs: (n) => `Connecté en tant que : ${n}`,
   },
   ar: {
@@ -35,7 +39,7 @@ const TT = {
     loginTitle: "دخول الأستاذ(ة)", accessCode: "كود الدخول (الحساب الرئيسي)",
     orLoginAs: "— أو الدخول بحساب أستاذ —",
     teacherName: "الاسم", teacherPassword: "كلمة السر", loginBtn: "دخول", wrong: "بيانات الدخول غير صحيحة",
-    tabCreateTest: "اختبار جديد", tabStudents: "التلاميذ", tabResults: "النتائج", tabHistory: "السجل", tabTeachers: "الأساتذة",
+    tabCreateTest: "اختبار جديد", tabStudents: "التلاميذ", tabResults: "النتائج", tabHistory: "السجل", tabTeachers: "الأساتذة", tabLevels: "المستويات والأقسام",
     titleFr: "العنوان (بالفرنسية)", titleAr: "العنوان (بالعربية) — اختياري", duration: "المدة (بالدقائق)", numQuestions: "عدد الأسئلة",
     pdfLabel: "ملف الأسئلة PDF", answersLabel: "الأجوبة الصحيحة", question: "السؤال",
     createBtn: "إنشاء الاختبار", creating: "جارٍ الإنشاء...", testCreated: "تم إنشاء الاختبار! الكود:",
@@ -53,6 +57,10 @@ const TT = {
     historyTitle: "سجل الاختبارات", createdOn: "أُنشئ في", submissions: "مشاركة", viewResults: "عرض النتائج",
     teachersTitle: "حسابات الأساتذة (يظهر فقط للحساب الرئيسي)", addTeacher: "إضافة أستاذ(ة)",
     newTeacherName: "اسم الأستاذ(ة) الجديد", newTeacherPassword: "كلمة السر", addBtn: "إضافة", teacherAdded: "تم إضافة الحساب.",
+    selectLevel: "المستوى", levelsTitle: "المستويات والأقسام", addLevel: "إضافة مستوى", newLevelName: "اسم المستوى",
+    addSection: "إضافة قسم", newSectionName: "اسم القسم", editBtn: "تعديل", saveBtn: "حفظ", deleteBtn: "حذف",
+    confirmDelete: "هل تريد تأكيد الحذف؟", currentStudents: "لائحة التلاميذ", deleteStudentConfirm: "هل تريد حذف هذا التلميذ؟",
+    deleteTeacherConfirm: "هل تريد حذف حساب هذا الأستاذ؟", noStudents: "لا يوجد تلاميذ بعد.", noTeachers: "لا توجد حسابات أخرى بعد.",
     loggedAs: (n) => `متصل باسم: ${n}`,
   },
 };
@@ -74,6 +82,7 @@ export default function TeacherPage() {
   // create test
   const [titleFr, setTitleFr] = useState("");
   const [titleAr, setTitleAr] = useState("");
+  const [selectedLevelId, setSelectedLevelId] = useState("");
   const [duration, setDuration] = useState(20);
   const [numQuestions, setNumQuestions] = useState(10);
   const [answers, setAnswers] = useState({});
@@ -102,6 +111,24 @@ export default function TeacherPage() {
   const [newTName, setNewTName] = useState("");
   const [newTPass, setNewTPass] = useState("");
   const [teacherMsg, setTeacherMsg] = useState("");
+  const [teachersList, setTeachersList] = useState(null);
+
+  // levels & sections
+  const [levels, setLevels] = useState([]);
+  const [newLevelName, setNewLevelName] = useState("");
+  const [editingLevelId, setEditingLevelId] = useState(null);
+  const [editLevelName, setEditLevelName] = useState("");
+  const [newSectionNameByLevel, setNewSectionNameByLevel] = useState({});
+  const [editingSectionId, setEditingSectionId] = useState(null);
+  const [editSectionName, setEditSectionName] = useState("");
+
+  // students list (for delete)
+  const [studentsList, setStudentsList] = useState(null);
+
+  useEffect(() => {
+    if (authed) loadLevels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authed]);
 
   const loginMaster = async () => {
     setErr("");
@@ -126,6 +153,7 @@ export default function TeacherPage() {
     const fd = new FormData();
     fd.append("teacherCode", authCode);
     fd.append("titleFr", titleFr); fd.append("titleAr", titleAr);
+    fd.append("levelId", selectedLevelId);
     fd.append("duration", duration); fd.append("numQuestions", numQuestions);
     fd.append("answerKey", JSON.stringify(answers)); fd.append("pdfFile", pdfFile);
     const res = await fetch("/api/create-test", { method: "POST", body: fd });
@@ -213,7 +241,68 @@ export default function TeacherPage() {
     const res = await fetch("/api/create-teacher", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ masterCode: authCode, name: newTName, password: newTPass }) });
     const data = await res.json();
     setTeacherMsg(data.ok ? t.teacherAdded : data.error);
-    if (data.ok) { setNewTName(""); setNewTPass(""); }
+    if (data.ok) { setNewTName(""); setNewTPass(""); loadTeachers(); }
+  };
+
+  const loadTeachers = async () => {
+    const res = await fetch("/api/list-teachers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ masterCode: authCode }) });
+    const data = await res.json();
+    setTeachersList(data.ok ? data.teachers : []);
+  };
+
+  const deleteTeacher = async (id) => {
+    if (!confirm(t.deleteTeacherConfirm)) return;
+    await fetch("/api/delete-teacher", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ masterCode: authCode, id }) });
+    loadTeachers();
+  };
+
+  const loadLevels = async () => {
+    const res = await fetch("/api/list-levels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode }) });
+    const data = await res.json();
+    if (data.ok) setLevels(data.levels);
+  };
+
+  const addLevel = async () => {
+    if (!newLevelName.trim()) return;
+    await fetch("/api/manage-levels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode, action: "create", name: newLevelName }) });
+    setNewLevelName(""); loadLevels();
+  };
+  const saveLevel = async (id) => {
+    await fetch("/api/manage-levels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode, action: "update", id, name: editLevelName }) });
+    setEditingLevelId(null); loadLevels();
+  };
+  const deleteLevel = async (id) => {
+    if (!confirm(t.confirmDelete)) return;
+    await fetch("/api/manage-levels", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode, action: "delete", id }) });
+    loadLevels();
+  };
+
+  const addSection = async (levelId) => {
+    const name = newSectionNameByLevel[levelId];
+    if (!name?.trim()) return;
+    await fetch("/api/manage-sections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode, action: "create", levelId, name }) });
+    setNewSectionNameByLevel((p) => ({ ...p, [levelId]: "" })); loadLevels();
+  };
+  const saveSection = async (id) => {
+    await fetch("/api/manage-sections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode, action: "update", id, name: editSectionName }) });
+    setEditingSectionId(null); loadLevels();
+  };
+  const deleteSection = async (id) => {
+    if (!confirm(t.confirmDelete)) return;
+    await fetch("/api/manage-sections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode, action: "delete", id }) });
+    loadLevels();
+  };
+
+  const loadStudentsList = async () => {
+    const res = await fetch("/api/list-students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode }) });
+    const data = await res.json();
+    setStudentsList(data.ok ? data.students : []);
+  };
+
+  const deleteStudent = async (codeMassar) => {
+    if (!confirm(t.deleteStudentConfirm)) return;
+    await fetch("/api/delete-student", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherCode: authCode, codeMassar }) });
+    loadStudentsList();
   };
 
   const LangSwitch = () => (
@@ -248,10 +337,10 @@ export default function TeacherPage() {
         <div style={{ maxWidth: 820, margin: "0 auto", padding: "24px" }}>
           <div style={{ fontSize: 12, color: "var(--ink-2)", marginBottom: 12 }}>{t.loggedAs(teacherLabel)}</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-            {["create", "students", "results", "history", ...(isMaster ? ["teachers"] : [])].map((tab_) => (
-              <button key={tab_} onClick={() => { setTab(tab_); if (tab_ === "history") loadHistory(); }}
+            {["create", "students", "results", "history", "levels", ...(isMaster ? ["teachers"] : [])].map((tab_) => (
+              <button key={tab_} onClick={() => { setTab(tab_); if (tab_ === "history") loadHistory(); if (tab_ === "students") loadStudentsList(); if (tab_ === "teachers") loadTeachers(); if (tab_ === "levels") loadLevels(); }}
                 style={tab === tab_ ? { padding: "8px 16px", fontSize: 13, background: "var(--ink)", color: "var(--paper)", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700 } : { padding: "8px 16px", fontSize: 13, background: "white", border: "1px solid var(--line)", borderRadius: 6, cursor: "pointer" }}>
-                {tab_ === "create" ? t.tabCreateTest : tab_ === "students" ? t.tabStudents : tab_ === "results" ? t.tabResults : tab_ === "history" ? t.tabHistory : t.tabTeachers}
+                {tab_ === "create" ? t.tabCreateTest : tab_ === "students" ? t.tabStudents : tab_ === "results" ? t.tabResults : tab_ === "history" ? t.tabHistory : tab_ === "levels" ? t.tabLevels : t.tabTeachers}
               </button>
             ))}
           </div>
@@ -262,6 +351,11 @@ export default function TeacherPage() {
               <input type="text" value={titleFr} onChange={(e) => setTitleFr(e.target.value)} />
               <label style={{ fontSize: 13, fontWeight: 700 }}>{t.titleAr}</label>
               <input type="text" value={titleAr} onChange={(e) => setTitleAr(e.target.value)} />
+              <label style={{ fontSize: 13, fontWeight: 700 }}>{t.selectLevel}</label>
+              <select value={selectedLevelId} onChange={(e) => setSelectedLevelId(e.target.value)} style={{ padding: 12, border: "2px solid var(--line)", borderRadius: 6, background: "white" }}>
+                <option value="">—</option>
+                {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div><label style={{ fontSize: 13, fontWeight: 700 }}>{t.duration}</label><input type="number" value={duration} onChange={(e) => setDuration(Number(e.target.value))} /></div>
                 <div><label style={{ fontSize: 13, fontWeight: 700 }}>{t.numQuestions}</label><input type="number" value={numQuestions} onChange={(e) => setNumQuestions(Number(e.target.value))} /></div>
@@ -285,7 +379,7 @@ export default function TeacherPage() {
                 })}
               </div>
               {createErr && <div style={{ color: "var(--danger)", fontSize: 13 }}>{createErr}</div>}
-              <button onClick={createTest} disabled={creating || !titleFr || !pdfFile} className="btn-primary">{creating ? t.creating : t.createBtn}</button>
+              <button onClick={createTest} disabled={creating || !titleFr || !selectedLevelId || !pdfFile} className="btn-primary">{creating ? t.creating : t.createBtn}</button>
             </div>
           )}
           {tab === "create" && createdCode && (
@@ -311,6 +405,20 @@ export default function TeacherPage() {
                 </div>
               </div>
               {studentsMsg && <div style={{ fontSize: 13 }}>{studentsMsg}</div>}
+
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ fontWeight: 700 }}>{t.currentStudents}</div>
+                {(studentsList || []).length === 0 && <p style={{ fontSize: 13, color: "var(--ink-2)" }}>{t.noStudents}</p>}
+                {(studentsList || []).map((s) => (
+                  <div key={s.code_massar} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{s.full_name}</div>
+                      <div style={{ fontSize: 12, color: "var(--ink-2)" }}>{s.code_massar} · {s.level || "-"} · {s.section || "-"}</div>
+                    </div>
+                    <button onClick={() => deleteStudent(s.code_massar)} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--danger)", color: "var(--danger)", borderRadius: 6, background: "white", cursor: "pointer" }}>{t.deleteBtn}</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -434,6 +542,71 @@ export default function TeacherPage() {
                 <button onClick={addTeacher} className="btn-primary">{t.addBtn}</button>
                 {teacherMsg && <div style={{ fontSize: 13 }}>{teacherMsg}</div>}
               </div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {(teachersList || []).length === 0 && <p style={{ fontSize: 13, color: "var(--ink-2)" }}>{t.noTeachers}</p>}
+                {(teachersList || []).map((tch) => (
+                  <div key={tch.id} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontWeight: 700 }}>{tch.name}</div>
+                    <button onClick={() => deleteTeacher(tch.id)} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--danger)", color: "var(--danger)", borderRadius: 6, background: "white", cursor: "pointer" }}>{t.deleteBtn}</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === "levels" && (
+            <div style={{ display: "grid", gap: 16 }}>
+              <div style={{ fontWeight: 700 }}>{t.levelsTitle}</div>
+              <div className="card" style={{ display: "flex", gap: 8 }}>
+                <input type="text" value={newLevelName} onChange={(e) => setNewLevelName(e.target.value)} placeholder={t.newLevelName} />
+                <button onClick={addLevel} className="btn-primary" style={{ whiteSpace: "nowrap" }}>{t.addLevel}</button>
+              </div>
+
+              {levels.map((l) => (
+                <div key={l.id} className="card" style={{ display: "grid", gap: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    {editingLevelId === l.id ? (
+                      <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                        <input type="text" value={editLevelName} onChange={(e) => setEditLevelName(e.target.value)} style={{ flex: 1 }} />
+                        <button onClick={() => saveLevel(l.id)} className="btn-primary" style={{ fontSize: 12, padding: "8px 12px" }}>{t.saveBtn}</button>
+                      </div>
+                    ) : (
+                      <div className="display" style={{ fontSize: 16 }}>{l.name}</div>
+                    )}
+                    {editingLevelId !== l.id && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => { setEditingLevelId(l.id); setEditLevelName(l.name); }} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--line)", borderRadius: 6, background: "white", cursor: "pointer" }}>{t.editBtn}</button>
+                        <button onClick={() => deleteLevel(l.id)} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--danger)", color: "var(--danger)", borderRadius: 6, background: "white", cursor: "pointer" }}>{t.deleteBtn}</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "grid", gap: 6, paddingInlineStart: 16 }}>
+                    {l.sections.map((s) => (
+                      <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--paper-2)", borderRadius: 6, padding: 8 }}>
+                        {editingSectionId === s.id ? (
+                          <div style={{ display: "flex", gap: 8, flex: 1 }}>
+                            <input type="text" value={editSectionName} onChange={(e) => setEditSectionName(e.target.value)} style={{ flex: 1, padding: 6 }} />
+                            <button onClick={() => saveSection(s.id)} className="btn-primary" style={{ fontSize: 11, padding: "6px 10px" }}>{t.saveBtn}</button>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13 }}>{s.name}</div>
+                        )}
+                        {editingSectionId !== s.id && (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={() => { setEditingSectionId(s.id); setEditSectionName(s.name); }} style={{ fontSize: 11, padding: "5px 8px", border: "1px solid var(--line)", borderRadius: 5, background: "white", cursor: "pointer" }}>{t.editBtn}</button>
+                            <button onClick={() => deleteSection(s.id)} style={{ fontSize: 11, padding: "5px 8px", border: "1px solid var(--danger)", color: "var(--danger)", borderRadius: 5, background: "white", cursor: "pointer" }}>{t.deleteBtn}</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input type="text" value={newSectionNameByLevel[l.id] || ""} onChange={(e) => setNewSectionNameByLevel((p) => ({ ...p, [l.id]: e.target.value }))} placeholder={t.newSectionName} style={{ flex: 1, padding: 8, fontSize: 13 }} />
+                      <button onClick={() => addSection(l.id)} className="btn-amber" style={{ fontSize: 12, padding: "8px 12px" }}>{t.addSection}</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

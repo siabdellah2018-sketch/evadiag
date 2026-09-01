@@ -3,22 +3,13 @@ import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 import { checkTeacherAuth } from "../../../lib/checkTeacherAuth";
 
 export async function POST(req) {
-  const { teacherCode } = await req.json();
+  const { teacherCode, codeMassar } = await req.json();
   if (!(await checkTeacherAuth(teacherCode))) {
     return NextResponse.json({ ok: false, error: "غير مصرح" }, { status: 401 });
   }
+  if (!codeMassar) return NextResponse.json({ ok: false, error: "بيانات ناقصة" }, { status: 400 });
   const db = supabaseAdmin();
-  const { data, error } = await db
-    .from("students")
-    .select("full_name, code_massar, created_at, levels(name), sections(name)")
-    .order("full_name");
+  const { error } = await db.from("students").delete().eq("code_massar", codeMassar);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  const students = data.map((s) => ({
-    full_name: s.full_name,
-    code_massar: s.code_massar,
-    created_at: s.created_at,
-    level: s.levels?.name || "",
-    section: s.sections?.name || "",
-  }));
-  return NextResponse.json({ ok: true, students });
+  return NextResponse.json({ ok: true });
 }
