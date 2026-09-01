@@ -14,7 +14,7 @@ const S = {
     testCode: "Code du test (donné par l'enseignant)",
     continueBtn: "Continuer",
     searching: "Vérification...",
-    introNote: "Le chronomètre démarre dès que vous appuyez sur « Commencer le test ». Les questions se trouvent dans le PDF ; répondez (A/B/C/D) dans la feuille de réponses à côté. Le temps ne peut pas être arrêté, et les questions laissées vides comptent comme fausses.",
+    introNote: "Le chronomètre démarre dès que vous appuyez sur « Commencer le test ». Les questions se trouvent dans le PDF (lecture seule, non téléchargeable) ; répondez (A/B/C/D) dans la feuille de réponses à côté. Le temps ne peut pas être arrêté, et les questions laissées vides comptent comme fausses.",
     startBtn: "Commencer le test",
     answerSheet: "Feuille de réponses",
     question: "Question",
@@ -92,7 +92,14 @@ export default function StudentPage() {
     }
   };
 
+  const autosaveKey = session ? `dtapp_autosave_${session.test.id}_${session.studentId}` : null;
+
   const startExam = () => {
+    // استرجاع إجابات محفوظة تلقائيًا إن وُجدت (بعد انقطاع اتصال أو إغلاق الصفحة بالخطأ)
+    try {
+      const saved = autosaveKey && localStorage.getItem(autosaveKey);
+      if (saved) setAnswers(JSON.parse(saved));
+    } catch (e) {}
     setSecondsLeft(session.test.duration_minutes * 60);
     setPhase("exam");
   };
@@ -107,12 +114,13 @@ export default function StudentPage() {
     });
     const data = await res.json();
     if (data.ok) {
+      try { autosaveKey && localStorage.removeItem(autosaveKey); } catch (e) {}
       setResult({ score: data.score, total: data.total });
       setPhase("result");
     } else {
       setErr(data.error);
     }
-  }, [session, answers]);
+  }, [session, answers, autosaveKey]);
 
   useEffect(() => {
     if (phase !== "exam") return;
@@ -125,9 +133,16 @@ export default function StudentPage() {
     return () => clearInterval(timerRef.current);
   }, [phase, submitExam]);
 
-  const setAns = (q, val) => setAnswers((a) => ({ ...a, [q]: val }));
+  const setAns = (q, val) => {
+    setAnswers((a) => {
+      const next = { ...a, [q]: val };
+      try { autosaveKey && localStorage.setItem(autosaveKey, JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  };
   const answeredCount = Object.keys(answers).length;
   const title = lang === "ar" ? (session?.test?.title_ar || session?.test?.title_fr) : session?.test?.title_fr;
+  const warnLevel = secondsLeft <= 60 ? "red" : secondsLeft <= 300 ? "amber" : null;
 
   return (
     <div dir={t.dir} data-lang={lang} style={{ minHeight: "100vh" }}>
@@ -175,16 +190,16 @@ export default function StudentPage() {
 
       {phase === "exam" && session && (
         <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", borderBottom: "1px solid var(--line)", background: secondsLeft <= 60 ? "#F7E3DC" : "var(--paper-2)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 24px", borderBottom: "1px solid var(--line)", background: warnLevel === "red" ? "#F7E3DC" : warnLevel === "amber" ? "#FBF0DC" : "var(--paper-2)" }}>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{title}</div>
-            <div className={`display ${secondsLeft <= 60 ? "timer-pulse" : ""}`} style={{ fontSize: 18, color: secondsLeft <= 60 ? "var(--danger)" : "var(--ink)" }}>
+            <div className={`display ${warnLevel ? "timer-pulse" : ""}`} style={{ fontSize: 18, color: warnLevel === "red" ? "var(--danger)" : warnLevel === "amber" ? "var(--amber-dark)" : "var(--ink)" }}>
               {fmtTime(secondsLeft)}
             </div>
             <div style={{ fontSize: 13, color: "var(--ink-2)" }}>{t.answered(answeredCount, session.test.num_questions)}</div>
           </div>
-          <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+          <div style={{ display: "flex", flex: 1, overflow: "hidden" }} onContextMenu={(e) => e.preventDefault()}>
             <div style={{ flex: 1, background: "#e9e9e9" }}>
-              <iframe title="pdf" src={session.test.pdf_url} style={{ width: "100%", height: "100%", border: 0 }} />
+              <iframe title="pdf" src={`${session.test.pdf_url}#toolbar=0&navpanes=0&scrollbar=1`} style={{ width: "100%", height: "100%", border: 0 }} />
             </div>
             <div style={{ width: 320, overflowY: "auto", padding: 16, background: "white", borderInlineStart: "1px solid var(--line)" }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{t.answerSheet}</div>

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { checkTeacherAuth } from "../../../lib/checkTeacherAuth";
 
 export async function POST(req) {
   const { teacherCode, students } = await req.json();
-  if (teacherCode !== process.env.TEACHER_ACCESS_CODE) {
+  if (!(await checkTeacherAuth(teacherCode))) {
     return NextResponse.json({ ok: false, error: "غير مصرح" }, { status: 401 });
   }
   if (!Array.isArray(students) || students.length === 0) {
@@ -20,6 +21,8 @@ export async function POST(req) {
       full_name: s.fullName.trim(),
       code_massar: s.codeMassar.trim(),
       password_hash,
+      section: (s.section || "").trim() || null,
+      level: (s.level || "").trim() || null,
     });
   }
   if (rows.length === 0) {

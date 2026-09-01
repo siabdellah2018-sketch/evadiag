@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { checkTeacherAuth } from "../../../lib/checkTeacherAuth";
 
 export async function POST(req) {
   const { teacherCode, testCode, codeMassar } = await req.json();
-  if (teacherCode !== process.env.TEACHER_ACCESS_CODE) {
+  if (!(await checkTeacherAuth(teacherCode))) {
     return NextResponse.json({ ok: false, error: "غير مصرح" }, { status: 401 });
   }
   const db = supabaseAdmin();

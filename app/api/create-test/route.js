@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+import { checkTeacherAuth } from "../../../lib/checkTeacherAuth";
 import { genTestCode } from "../../../lib/genCode";
 
 export async function POST(req) {
   const form = await req.formData();
   const teacherCode = form.get("teacherCode");
-  if (teacherCode !== process.env.TEACHER_ACCESS_CODE) {
+  if (!(await checkTeacherAuth(teacherCode))) {
     return NextResponse.json({ ok: false, error: "غير مصرح" }, { status: 401 });
   }
 
